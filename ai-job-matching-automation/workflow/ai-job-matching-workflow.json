@@ -1,0 +1,1309 @@
+{
+  "name": "AI Job Matching Automation",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        -128
+      ],
+      "id": "2cb53291-505d-4eae-80fa-062cca4c9fe8",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://lk.linkedin.com/jobs/internship-jobs?countryRedirected=1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        -208
+      ],
+      "id": "cfbd9d50-cf99-45b6-83ad-ce1c96429a59",
+      "name": "Linkdin"
+    },
+    {
+      "parameters": {
+        "url": "https://itpro.lk/rss/all/internship/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        -32
+      ],
+      "id": "95535162-84ff-4c7b-91e7-96b9773c60e3",
+      "name": "ITPro.lk"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -32
+      ],
+      "id": "bedebb1f-8f38-4268-a89b-bf4b112b4239",
+      "name": "ITPro - Parse RSS"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst jobs = data.rss?.channel?.item || [];\n\nreturn jobs.map(job => {\n  return {\n    json: {\n      title: job.title || \"\",\n      company: \"\",\n      location: \"\",\n      job_type: \"\",\n      experience_level: \"\",\n      description: job.description || \"\",\n      requirements: \"\",\n      source: \"ITPro.lk\",\n      url: job.link || \"\",\n      posted_date: job.pubDate || \"\",\n      collected_at: new Date().toISOString(),\n      deadline: \"\",\n      status: \"new\",\n      match_score: \"\"\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -32
+      ],
+      "id": "7fe52df9-54d9-4c1c-a8b2-a8632828a88a",
+      "name": "Extract ITPro Jobs",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "jobs",
+              "cssSelector": "div.base-search-card",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        -208
+      ],
+      "id": "fe83b89e-d813-4f04-811f-51d0ca690151",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobs = $input.first().json.jobs || [];\n\nreturn jobs.map(job => {\n  const text = job\n    .replace(/\\n+/g, '\\n')\n    .trim();\n\n  const urlMatch = text.match(\n    /https?:\\/\\/(?:[a-z]{2,3}\\.)?linkedin\\.com\\/jobs\\/view\\/[^\\s]+/i\n  );\n\n  const url = urlMatch ? urlMatch[0] : '';\n\n  const lines = text\n    .split('\\n')\n    .map(line => line.trim())\n    .filter(Boolean);\n\n  const title = lines[0] || '';\n\n  const postedDateMatch = text.match(\n    /(?:just now|\\d+\\s+(?:minute|hour|day|week|month|year)s?\\s+ago)/i\n  );\n\n  return {\n    json: {\n      title: title,\n      company: \"\",\n      location: \"\",\n      job_type: \"\",\n      experience_level: \"\",\n      description: text,\n      requirements: \"\",\n      source: \"LinkedIn\",\n      url: url,\n      posted_date: postedDateMatch ? postedDateMatch[0] : \"\",\n      collected_at: new Date().toISOString(),\n      deadline: \"\",\n      status: \"new\",\n      match_score: \"\"\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        -208
+      ],
+      "id": "22a14c71-1e1d-4b1f-9418-6e3334e144d3",
+      "name": "Extract Jobs"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        752,
+        -128
+      ],
+      "id": "507c40c7-e345-47f8-9c6c-8172d81018de",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobs = $input.all();\n\nconst seen = new Set();\nconst uniqueJobs = [];\n\nfor (const item of jobs) {\n  const job = item.json;\n\n  const key = (\n    (job.title || '') + '|' +\n    (job.company || '') + '|' +\n    (job.location || '')\n  )\n    .toLowerCase()\n    .trim();\n\n  if (!seen.has(key)) {\n    seen.add(key);\n    uniqueJobs.push(item);\n  }\n}\n\nreturn uniqueJobs;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -128
+      ],
+      "id": "481d15cb-e20e-41b2-9ade-b269a2b046e3",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobs = $input.all();\n\nreturn jobs.map(item => {\n  const job = item.json;\n\n  const base = `${job.source}-${job.title}-${job.company}-${job.url}`;\n\n  let hash = 0;\n  for (let i = 0; i < base.length; i++) {\n    hash = ((hash << 5) - hash) + base.charCodeAt(i);\n    hash |= 0;\n  }\n\n  return {\n    json: {\n      job_id: `${job.source}-${Math.abs(hash)}`,\n      ...job\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        -128
+      ],
+      "id": "1b68738b-d00d-4d7a-8825-0ddaf4976777",
+      "name": "Prepare Jobs"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Job Matching Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Jobs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "job_id": "={{ $json.job_id }}",
+            "title": "={{ $json.title }}",
+            "company": "={{ $json.company }}",
+            "job_type": "={{ $json.job_type }}",
+            "location": "={{ $json.location }}",
+            "experience_level": "={{ $json.experience_level }}",
+            "requirements": "={{ $json.requirements }}",
+            "description": "={{ $json.description }}",
+            "posted_date": "={{ $json.posted_date }}",
+            "url": "={{ $json.url }}",
+            "source": "={{ $json.source }}",
+            "collected_at": "={{ $json.collected_at }}",
+            "deadline": "={{ $json.deadline }}",
+            "status": "={{ $json.status }}",
+            "match_score": "={{ $json.match_score }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "job_id",
+              "displayName": "job_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "job_type",
+              "displayName": "job_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "experience_level",
+              "displayName": "experience_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "requirements",
+              "displayName": "requirements",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "posted_date",
+              "displayName": "posted_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "collected_at",
+              "displayName": "collected_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "deadline",
+              "displayName": "deadline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "match_score",
+              "displayName": "match_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        -128
+      ],
+      "id": "7f02ca62-3fb2-4a0a-9940-d58c3d24febf",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "resume",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        128,
+        400
+      ],
+      "id": "f17d4f75-1393-4397-bebf-cd793dbab903",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_NVIDIA_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  model: \"nvidia/nemotron-3.5-lightning-30b-a3b\",\n  messages: [\n    {\n      role: \"system\",\n      content: \"You are a professional resume analysis assistant. Extract accurate information from the provided resume. Do not invent or guess information. Return only valid JSON.\"\n    },\n    {\n      role: \"user\",\n      content: \"Analyze this resume and extract the candidate profile.\\n\\nResume:\\n\" + $('Extract from File').item.json.text + \"\\n\\nReturn ONLY valid JSON with these fields:\\nname, email, phone, location, education, degree, university, gpa, skills, programming_languages, frameworks, databases, cloud_technologies, tools, projects, experience, certifications, preferred_roles, experience_level.\\n\\nUse empty strings when text information is unavailable and empty arrays when list information is unavailable.\"\n    }\n  ],\n  temperature: 0.2,\n  top_p: 0.95,\n  max_tokens: 4000,\n  stream: false,\n  chat_template_kwargs: {\n    enable_thinking: false\n  }\n}\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        336,
+        400
+      ],
+      "id": "e045b8e2-9c60-49db-91b0-d3f6f45ec3ea",
+      "name": "AI - Analyze Resume"
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $input.first().json.choices[0].message.content;\n\nconst profile = JSON.parse(content);\n\nreturn [\n  {\n    json: profile\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        400
+      ],
+      "id": "084829bd-e466-4f4b-97b9-1d4a09ef8d6e",
+      "name": "Parse Resume Profile"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Job Matching Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1001,
+          "mode": "list",
+          "cachedResultName": "My_Profile",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=1001"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json.name }}",
+            "phone": "={{ $json.phone }}",
+            "email": "={{ $json.email }}",
+            "location": "={{ $json.location }}",
+            "education": "={{ $json.education }}",
+            "degree": "={{ $json.education[0].degree }}",
+            "university": "={{ $json.education[0].university }}",
+            "gpa": "={{ $json.education[0].gpa }}",
+            "skills": "={{ $json.skills }}",
+            "programming_languages": "={{ $json.programming_languages }}",
+            "frameworks": "={{ $json.frameworks }}",
+            "databases": "={{ $json.databases }}",
+            "cloud_technologies": "={{ $json.cloud_technologies }}",
+            "projects": "={{ $json.projects }}",
+            "tools": "={{ $json.tools }}",
+            "experience": "={{ $json.experience }}",
+            "certifications": "={{ $json.certifications }}",
+            "preferred_roles": "={{ $json.preferred_roles }}",
+            "experience_level": "={{ $json.experience_level }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "location",
+              "displayName": "location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "education",
+              "displayName": "education",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "degree",
+              "displayName": "degree",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "university",
+              "displayName": "university",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gpa",
+              "displayName": "gpa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "skills",
+              "displayName": "skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "programming_languages",
+              "displayName": "programming_languages",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "frameworks",
+              "displayName": "frameworks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "databases",
+              "displayName": "databases",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cloud_technologies",
+              "displayName": "cloud_technologies",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tools",
+              "displayName": "tools",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "projects",
+              "displayName": "projects",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "experience",
+              "displayName": "experience",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "certifications",
+              "displayName": "certifications",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "preferred_roles",
+              "displayName": "preferred_roles",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "experience_level",
+              "displayName": "experience_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        752,
+        400
+      ],
+      "id": "62bc3cec-7ddc-48bc-a7d7-2e1499ac2ddf",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Job Matching Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Jobs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -256,
+        -128
+      ],
+      "id": "6765e52c-bba7-4159-ad35-b1cd19204dbd",
+      "name": "Get Existing Jobs",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const count = $input.all().length;\n\nreturn [\n  {\n    json: {\n      existing_job_count: count\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -128
+      ],
+      "id": "c63fa088-6b1e-45c8-85a7-8c5a155cbc7e",
+      "name": "Count Existing Jobs"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Job Matching Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Jobs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=0"
+        },
+        "numberToDelete": "={{ $json.existing_job_count }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        80,
+        -128
+      ],
+      "id": "ec8ffbc1-6c46-4839-bb86-90619aa144d3",
+      "name": "Delete rows or columns from sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Job Matching Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1001,
+          "mode": "list",
+          "cachedResultName": "My_Profile",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=1001"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1392,
+        -128
+      ],
+      "id": "fbd0f01b-8927-4f8e-9ebf-1dd54e42fc65",
+      "name": "Get My Profile",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const profile = $input.first().json;\nconst jobs = $('Append row in sheet').all();\n\nfunction text(value) {\n  if (Array.isArray(value)) {\n    return value.map(v =>\n      typeof v === 'object' ? Object.values(v).join(' ') : String(v)\n    ).join(' ');\n  }\n\n  if (value === null || value === undefined) return '';\n  return String(value);\n}\n\nfunction normalize(value) {\n  return text(value)\n    .toLowerCase()\n    .replace(/[^\\w+#.\\- ]/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\n// --------------------------------------------------\n// YOUR PROFILE\n// --------------------------------------------------\n\nconst profileSkills = normalize([\n  profile.skills,\n  profile.programming_languages,\n  profile.frameworks,\n  profile.databases,\n  profile.cloud_technologies,\n  profile.tools\n].join(' '));\n\nconst profileRoles = normalize(profile.preferred_roles);\nconst profileExperience = normalize(profile.experience);\nconst profileEducation = normalize([\n  profile.education,\n  profile.degree\n].join(' '));\n\n// --------------------------------------------------\n// RELATED TECHNOLOGY GROUPS\n// --------------------------------------------------\n\nconst relatedGroups = [\n  ['javascript', 'typescript', 'node.js', 'nodejs'],\n  ['react', 'react.js', 'next.js', 'frontend', 'front-end'],\n  ['node.js', 'nodejs', 'express.js', 'express', 'backend', 'back-end'],\n  ['mongodb', 'mongoose', 'nosql'],\n  ['sql', 'mysql', 'postgresql', 'postgres', 'database'],\n  ['azure', 'microsoft azure', 'cloud'],\n  ['docker', 'container', 'containers'],\n  ['github actions', 'ci/cd', 'cicd', 'continuous integration'],\n  ['html', 'css', 'html5', 'css3', 'web development'],\n  ['rest api', 'restful api', 'api development'],\n  ['c++', 'cpp'],\n  ['python', 'machine learning', 'data science'],\n  ['git', 'github', 'version control'],\n  ['agile', 'scrum'],\n  ['react', 'frontend', 'web development'],\n  ['node.js', 'backend', 'api development']\n];\n\nfunction getGroup(word) {\n  for (const group of relatedGroups) {\n    if (group.includes(word)) {\n      return group;\n    }\n  }\n\n  return null;\n}\n\n// --------------------------------------------------\n// CHECK WHETHER A SKILL MATCHES\n// --------------------------------------------------\n\nfunction skillMatch(requiredSkill, profileText) {\n\n  if (profileText.includes(requiredSkill)) {\n    return 1;\n  }\n\n  const group = getGroup(requiredSkill);\n\n  if (group) {\n    for (const relatedSkill of group) {\n      if (profileText.includes(relatedSkill)) {\n        return 0.6;\n      }\n    }\n  }\n\n  return 0;\n}\n\n// --------------------------------------------------\n// SCORE EACH JOB\n// --------------------------------------------------\n\nreturn jobs.map(item => {\n\n  const job = item.json;\n\n  const title = normalize(job.title);\n  const requirements = normalize(job.requirements);\n  const description = normalize(job.description);\n\n  const jobText = [\n    title,\n    requirements,\n    description\n  ].join(' ');\n\n  // -----------------------------------------------\n  // 1. TECHNICAL SKILLS — 50%\n  // -----------------------------------------------\n\n  const skillWords = [\n    'javascript',\n    'typescript',\n    'react',\n    'next.js',\n    'node.js',\n    'express.js',\n    'python',\n    'java',\n    'c++',\n    'html',\n    'css',\n    'mongodb',\n    'sql',\n    'mysql',\n    'postgresql',\n    'redis',\n    'docker',\n    'azure',\n    'aws',\n    'git',\n    'github',\n    'rest api',\n    'machine learning',\n    'data science',\n    'figma',\n    'angular',\n    'vue.js'\n  ];\n\n  const detectedSkills = skillWords.filter(skill =>\n    jobText.includes(skill)\n  );\n\n  let technicalScore = 0;\n\n  if (detectedSkills.length > 0) {\n\n    let total = 0;\n\n    for (const skill of detectedSkills) {\n      total += skillMatch(skill, profileSkills);\n    }\n\n    technicalScore =\n      (total / detectedSkills.length) * 50;\n  }\n\n  // -----------------------------------------------\n  // 2. ROLE MATCH — 30%\n  // -----------------------------------------------\n\n  let roleScore = 0;\n\n  const roleGroups = [\n    ['software engineer', 'software engineering', 'software developer'],\n    ['frontend', 'front-end', 'frontend developer', 'react developer'],\n    ['backend', 'back-end', 'backend developer', 'node.js developer'],\n    ['full stack', 'full-stack', 'full stack developer'],\n    ['web developer', 'web development'],\n    ['devops', 'cloud engineer'],\n    ['data analyst', 'data science', 'machine learning'],\n    ['qa', 'quality assurance', 'software testing'],\n    ['ui ux', 'ui/ux', 'ui designer', 'ux designer']\n  ];\n\n  for (const group of roleGroups) {\n\n    const jobHasRole = group.some(role =>\n      title.includes(role)\n    );\n\n    const profileHasRole = group.some(role =>\n      profileRoles.includes(role)\n    );\n\n    if (jobHasRole && profileHasRole) {\n      roleScore = 30;\n      break;\n    }\n\n    // Partial related-role match\n    if (jobHasRole) {\n      const profileSkillRelated = group.some(role =>\n        profileSkills.includes(role)\n      );\n\n      if (profileSkillRelated) {\n        roleScore = 18;\n        break;\n      }\n    }\n  }\n\n  // -----------------------------------------------\n  // 3. INTERNSHIP FIT — 10%\n  // -----------------------------------------------\n\n  let internshipScore = 0;\n\n  const internshipWords = [\n    'intern',\n    'internship',\n    'trainee',\n    'undergraduate',\n    'student'\n  ];\n\n  if (internshipWords.some(word => title.includes(word))) {\n    internshipScore = 10;\n  }\n\n  // -----------------------------------------------\n  // 4. EDUCATION / EXPERIENCE FIT — 10%\n  // -----------------------------------------------\n\n  let educationScore = 0;\n\n  const educationKeywords = [\n    'computer engineering',\n    'computer science',\n    'software engineering',\n    'information technology',\n    'engineering',\n    'undergraduate',\n    'bachelor'\n  ];\n\n  const hasEducationMatch =\n    educationKeywords.some(keyword =>\n      jobText.includes(keyword) &&\n      profileEducation.includes(keyword)\n    );\n\n  if (hasEducationMatch) {\n    educationScore = 10;\n  } else if (\n    jobText.includes('undergraduate') &&\n    profileEducation.includes('undergraduate')\n  ) {\n    educationScore = 7;\n  } else {\n    educationScore = 4;\n  }\n\n  // -----------------------------------------------\n  // FINAL SCORE\n  // -----------------------------------------------\n\n  let score =\n    technicalScore +\n    roleScore +\n    internshipScore +\n    educationScore;\n\n  score = Math.round(Math.min(score, 100));\n\n  return {\n    json: {\n      ...job,\n      match_score: score\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        -128
+      ],
+      "id": "5adf0927-8035-40e6-8d1a-7c4c06d18b01",
+      "name": "Calculate Match Scores"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Job Matching Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Jobs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1696,
+        -128
+      ],
+      "id": "19ceddc7-bf0c-466f-91f1-01a28cefc835",
+      "name": "Update Job Match Scores",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI job-matching assistant for LankaJob Intelligence.\n\nAnalyze the following job against my profile.\n\nJOB:\nTitle: {{ $('Prepare Jobs').item.json.title }}\nCompany: {{ $('Prepare Jobs').item.json.company }}\nLocation: {{ $('Prepare Jobs').item.json.location }}\nJob Type: {{ $('Prepare Jobs').item.json.job_type }}\nExperience Level: {{ $('Prepare Jobs').item.json.experience_level }}\nDescription: {{ $('Prepare Jobs').item.json.description }}\nRequirements: {{ $('Prepare Jobs').item.json.requirements }}\nSource: {{ $('Prepare Jobs').item.json.source }}\nURL: {{ $('Prepare Jobs').item.json.url }}\nMatch Score: {{ $json.match_score }}\n\nMY PROFILE:\n{{ JSON.stringify($('Get My Profile').first().json) }}\n\nTASK:\nEvaluate how relevant this job is for me.\n\nConsider:\n1. How well my technical skills match the job.\n2. Whether my education and experience are suitable.\n3. Whether this is appropriate for my experience level.\n4. Which of my skills match the job.\n5. Which important skills or requirements I am missing.\n6. Whether I should apply.\n\nReturn ONLY valid JSON in this exact structure:\n\n{\n  \"job_relevance\": \"High\",\n  \"why_match\": \"Brief explanation\",\n  \"matching_skills\": [\"skill1\", \"skill2\"],\n  \"missing_skills\": [\"skill1\", \"skill2\"],\n  \"recommendation\": \"Apply\"\n}\n\nUse only information provided in the job and profile. Do not invent skills, experience, qualifications, or requirements.",
+        "hasOutputParser": true,
+        "batching": {
+          "batchSize": 5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1584,
+        176
+      ],
+      "id": "5b31d789-45c7-4e1d-9626-2e248544eb3a",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-super-120b-a12b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatNvidia",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        432
+      ],
+      "id": "d01192ec-82db-4a06-bb95-54e0b7732451",
+      "name": "NVIDIA Nemotron Chat Model",
+      "credentials": {
+        "nvidiaApi": {
+          "id": "YOUR_NVIDIA_API_CREDENTIAL_ID",
+          "name": "NVIDIA Nemotron account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"job_relevance\": \"High\",\n  \"why_match\": \"The job matches my software development background and skills.\",\n  \"matching_skills\": [\"JavaScript\", \"React.js\"],\n  \"missing_skills\": [\"AWS\"],\n  \"recommendation\": \"Apply\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1760,
+        448
+      ],
+      "id": "c8c2df9a-39fd-4716-bc15-413eaa7d43e8",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        -128
+      ],
+      "id": "98124b21-bd93-4faa-ae3d-bec357bf636e",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Job Matching Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2001,
+          "mode": "list",
+          "cachedResultName": "AI_Analysis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=2001"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "job_id": "={{ $('Limit').item.json.job_id }}",
+            "job_relevance": "={{ $json.output.job_relevance }}",
+            "why_match": "={{ $json.output.why_match }}",
+            "matching_skills": "={{ JSON.stringify($json.output.matching_skills) }}",
+            "missing_skills": "={{ JSON.stringify($json.output.missing_skills) }}",
+            "recommendation": "={{ $json.output.recommendation }}",
+            "analyzed_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "job_id",
+              "displayName": "job_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "job_relevance",
+              "displayName": "job_relevance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "why_match",
+              "displayName": "why_match",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "matching_skills",
+              "displayName": "matching_skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "missing_skills",
+              "displayName": "missing_skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "recommendation",
+              "displayName": "recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analyzed_at",
+              "displayName": "analyzed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1888,
+        176
+      ],
+      "id": "dd5f2508-6529-4a11-9afc-54d64fe545ac",
+      "name": "Append row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "AI Job Matching - Resume Upload",
+        "formDescription": "Upload your resume and our AI will analyze your skills and profile for job matching.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Upload Resume",
+              "fieldType": "file",
+              "fieldName": "resume",
+              "acceptFileTypes": "PDF",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -96,
+        400
+      ],
+      "id": "744c7407-a0b2-40a6-9544-2e45d36b8e43",
+      "name": "LankaJob Intelligence - Resume Upload",
+      "webhookId": "62fba98b-ad4c-4261-8e42-9f9ee76872b3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ITPro.lk": {
+      "main": [
+        [
+          {
+            "node": "ITPro - Parse RSS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ITPro - Parse RSS": {
+      "main": [
+        [
+          {
+            "node": "Extract ITPro Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linkdin": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Extract Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Jobs": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract ITPro Jobs": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Prepare Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Jobs": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "AI - Analyze Resume",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Analyze Resume": {
+      "main": [
+        [
+          {
+            "node": "Parse Resume Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Resume Profile": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Get My Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Jobs": {
+      "main": [
+        [
+          {
+            "node": "Count Existing Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Existing Jobs": {
+      "main": [
+        [
+          {
+            "node": "Delete rows or columns from sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete rows or columns from sheet": {
+      "main": [
+        [
+          {
+            "node": "Linkdin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ITPro.lk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get My Profile": {
+      "main": [
+        [
+          {
+            "node": "Calculate Match Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Match Scores": {
+      "main": [
+        [
+          {
+            "node": "Update Job Match Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Job Match Scores": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVIDIA Nemotron Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LankaJob Intelligence - Resume Upload": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "nodeGroups": [],
+  "tags": []
+}

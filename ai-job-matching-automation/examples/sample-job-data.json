@@ -1,0 +1,148 @@
+{
+  "candidate_profile": {
+    "name": "Alex Morgan",
+    "email": "alex.morgan.demo@example.com",
+    "phone": "+1-555-0199",
+    "location": "Colombo, Sri Lanka",
+    "education": [
+      {
+        "degree": "B.Sc. (Hons) in Software Engineering",
+        "university": "Faculty of Computing, National Technological University",
+        "gpa": "3.84"
+      }
+    ],
+    "degree": "B.Sc. (Hons) in Software Engineering",
+    "university": "Faculty of Computing, National Technological University",
+    "gpa": "3.84",
+    "skills": [
+      "JavaScript",
+      "TypeScript",
+      "Python",
+      "React.js",
+      "Node.js",
+      "Express.js",
+      "PostgreSQL",
+      "MongoDB",
+      "Docker",
+      "Git",
+      "REST APIs",
+      "Tailwind CSS"
+    ],
+    "programming_languages": [
+      "JavaScript",
+      "TypeScript",
+      "Python",
+      "SQL",
+      "C++"
+    ],
+    "frameworks": [
+      "React.js",
+      "Next.js",
+      "Node.js",
+      "Express.js"
+    ],
+    "databases": [
+      "PostgreSQL",
+      "MongoDB",
+      "Redis"
+    ],
+    "cloud_technologies": [
+      "Docker",
+      "AWS",
+      "GitHub Actions"
+    ],
+    "tools": [
+      "Git",
+      "GitHub",
+      "Postman",
+      "VS Code",
+      "Figma"
+    ],
+    "projects": [
+      "AI-Powered Task Analytics Dashboard (React, Node.js, PostgreSQL)",
+      "Distributed Event Logging Service (Node.js, Docker, Redis)"
+    ],
+    "experience": "Undergraduate developer with 6 months internship experience building RESTful APIs and modern React frontends.",
+    "certifications": [
+      "AWS Certified Cloud Practitioner"
+    ],
+    "preferred_roles": "Software Engineer, Full Stack Developer, Frontend Developer, Backend Developer",
+    "experience_level": "Intern / Entry-Level"
+  },
+  "discovered_jobs": [
+    {
+      "job_id": "LinkedIn-184920491",
+      "title": "Software Engineering Intern (React / Node.js)",
+      "company": "CloudScale Solutions",
+      "location": "Colombo, Sri Lanka (Hybrid)",
+      "job_type": "Internship",
+      "experience_level": "Internship",
+      "description": "We are seeking a proactive Software Engineering Intern to join our web platform team. You will work on client-facing features using React, TypeScript, and Node.js REST APIs.",
+      "requirements": "Pursuing a Degree in Computer Science, Software Engineering, or IT. Hands-on experience with JavaScript, TypeScript, React, and Node.js. Familiarity with Git and relational databases (PostgreSQL/MySQL).",
+      "source": "LinkedIn",
+      "url": "https://lk.linkedin.com/jobs/view/demo-job-184920491",
+      "posted_date": "2 days ago",
+      "collected_at": "2026-09-23T08:30:00.000Z",
+      "deadline": "",
+      "status": "new",
+      "match_score": 88
+    },
+    {
+      "job_id": "ITPro-92817412",
+      "title": "Trainee Full Stack Developer",
+      "company": "Apex Technologies",
+      "location": "Colombo, Sri Lanka",
+      "job_type": "Trainee / Full-Time",
+      "experience_level": "Entry Level",
+      "description": "Looking for fresh graduates or final-year undergraduates passionate about modern web technologies. Opportunity to build scalable enterprise web apps.",
+      "requirements": "Knowledge of JavaScript, Python, HTML5, CSS3, SQL databases, and REST APIs. Excellent problem solving skills.",
+      "source": "ITPro.lk",
+      "url": "https://itpro.lk/demo-job-92817412",
+      "posted_date": "Wed, 23 Sep 2026 04:00:00 +0000",
+      "collected_at": "2026-09-23T08:30:00.000Z",
+      "deadline": "",
+      "status": "new",
+      "match_score": 74
+    }
+  ],
+  "ai_analysis_results": [
+    {
+      "job_id": "LinkedIn-184920491",
+      "job_relevance": "High",
+      "why_match": "The candidate has direct project experience with React, TypeScript, and Node.js, which matches 100% of the core required stack. Additionally, the candidate is a Software Engineering undergraduate seeking an internship role, making this an optimal fit.",
+      "matching_skills": [
+        "JavaScript",
+        "TypeScript",
+        "React.js",
+        "Node.js",
+        "PostgreSQL",
+        "Git",
+        "REST APIs"
+      ],
+      "missing_skills": [
+        "GraphQL",
+        "Docker Compose"
+      ],
+      "recommendation": "Apply",
+      "analyzed_at": "2026-09-23T08:35:12.450Z"
+    },
+    {
+      "job_id": "ITPro-92817412",
+      "job_relevance": "Medium-High",
+      "why_match": "Strong baseline match with Python, JavaScript, and SQL requirements. The role is open to undergraduates and entry-level talent, matching the candidate's career stage.",
+      "matching_skills": [
+        "JavaScript",
+        "Python",
+        "SQL",
+        "HTML/CSS",
+        "REST APIs"
+      ],
+      "missing_skills": [
+        "Java"
+      ],
+      "recommendation": "Apply",
+      "analyzed_at": "2026-09-23T08:35:18.120Z"
+    }
+  ]
+}
+
